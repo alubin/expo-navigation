@@ -1,52 +1,32 @@
-import 'react-native-gesture-handler';
 import React, {useMemo, useState} from 'react';
+import {NavigationContainer, RouteProp} from '@react-navigation/native';
 import {
-    getFocusedRouteNameFromRoute,
-    NavigationContainer,
-    NavigatorScreenParams,
-    Route,
-} from '@react-navigation/native';
-import {createStackNavigator} from '@react-navigation/stack';
+    createStackNavigator,
+    StackNavigationProp,
+    TransitionPresets,
+} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+
+import {AuthContext} from './src/AuthContext';
+import {
+    HomeNonModalStackParamList,
+    SettingsStackParamList,
+    HomeStackParamList,
+    RootTabParamList,
+    RootStackParamList,
+} from './src/types';
 
 import Home from './src/screens/Home';
 import Login from './src/screens/Login';
 import Settings from './src/screens/Settings';
-import {AuthContext} from './src/AuthContext';
-import Amplify from 'aws-amplify';
-import config from './aws-exports';
-import SignIn from "./src/screens/SignIn";
-
-Amplify.configure(config);
-
-type RootStackParamList = {
-    SignIn: undefined;
-    SignUp: undefined;
-    RootTab: NavigatorScreenParams<RootTabParamList>;
-};
-
-type RootTabParamList = {
-    Home: undefined;
-    Settings: undefined;
-};
-
-const getTabHeaderTitle = (
-    route: Route<'RootTab', NavigatorScreenParams<RootTabParamList>>,
-) => {
-    const routeName = getFocusedRouteNameFromRoute(route);
-
-    switch (routeName) {
-        case 'Home':
-            return 'Home';
-        case 'Settings':
-            return 'Settings';
-        default:
-            return 'Home';
-    }
-};
+import Details from './src/screens/Details';
+import Edit from './src/screens/Edit';
 
 const App = () => {
     const RootStack = createStackNavigator<RootStackParamList>();
+    const HomeStack = createStackNavigator<HomeStackParamList>();
+    const SettingsStack = createStackNavigator<SettingsStackParamList>();
+    const HomeNonModalStack = createStackNavigator<HomeNonModalStackParamList>();
     const RootTab = createBottomTabNavigator<RootTabParamList>();
 
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -54,11 +34,9 @@ const App = () => {
     const authContext = useMemo(
         () => ({
             logIn: () => {
-                console.log("Logged In");
                 setIsLoggedIn(true);
             },
             logOut: () => {
-                console.log("Logged Out");
                 setIsLoggedIn(false);
             },
         }),
@@ -67,9 +45,59 @@ const App = () => {
 
     const RootTabScreens = () => (
         <RootTab.Navigator>
-            <RootTab.Screen name="Home" component={Home} />
-            <RootTab.Screen name="Settings" component={Settings} />
+            <RootTab.Screen
+                name="HomeStack"
+                component={HomeStackScreens}
+                options={{title: 'Home'}}
+            />
+            <RootTab.Screen
+                name="SettingsStack"
+                component={SettingsStackScreens}
+                options={{title: 'Settings'}}
+            />
         </RootTab.Navigator>
+    );
+
+    const SettingsStackScreens = () => (
+        <SettingsStack.Navigator>
+            <SettingsStack.Screen name="Settings" component={Settings} />
+        </SettingsStack.Navigator>
+    );
+
+    const HomeStackScreens = () => (
+        <HomeStack.Navigator
+            mode="modal"
+            screenOptions={({
+                                route,
+                                navigation,
+                            }: {
+                route: RouteProp<HomeStackParamList, 'HomeNonModalStack' | 'Edit'>;
+                navigation: StackNavigationProp<HomeStackParamList>;
+            }) => ({
+                gestureEnabled: true,
+                cardOverlayEnabled: true,
+                headerStatusBarHeight:
+                    navigation
+                        .dangerouslyGetState()
+                        .routes.findIndex((r) => r.key === route.key) > 0
+                        ? 0
+                        : undefined,
+                ...TransitionPresets.ModalPresentationIOS,
+            })}>
+            <HomeStack.Screen
+                name="HomeNonModalStack"
+                component={HomeNonModalStackScreens}
+                options={{headerShown: false}}
+            />
+            <HomeStack.Screen name="Edit" component={Edit} />
+        </HomeStack.Navigator>
+    );
+
+    const HomeNonModalStackScreens = () => (
+        <HomeNonModalStack.Navigator>
+            <HomeNonModalStack.Screen name="Home" component={Home} />
+            <HomeNonModalStack.Screen name="Details" component={Details} />
+        </HomeNonModalStack.Navigator>
     );
 
     return (
@@ -80,13 +108,10 @@ const App = () => {
                         <RootStack.Screen
                             name="RootTab"
                             component={RootTabScreens}
-                            options={({route}) => ({
-                                headerTitle: getTabHeaderTitle(route),
-                            })}
+                            options={{headerShown: false}}
                         />
                     ) : (
-                        // <RootStack.Screen name="Login" component={Login} />
-                        <RootStack.Screen name="SignIn" component={SignIn} />
+                        <RootStack.Screen name="Login" component={Login} />
                     )}
                 </RootStack.Navigator>
             </NavigationContainer>
@@ -95,4 +120,3 @@ const App = () => {
 };
 
 export default App;
-
